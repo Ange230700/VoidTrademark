@@ -30,6 +30,14 @@ const SIZES = {
   circleR_monogram: 35, // on a 120x120 canvas
 };
 
+// Shared helpers for interior slash
+const CX = 50, CY = 50;
+const interiorSlash = (radius: number, stroke: number, edgeGap: number) => {
+  const safeRadius = radius - (edgeGap + stroke / 2);
+  const L = Math.max(0, 2 * safeRadius);
+  return { L };
+};
+
 const xml = (s: string) => `<?xml version="1.0" encoding="UTF-8"?>\n${s}`;
 
 // Helpers
@@ -68,17 +76,26 @@ function emptyset_round(): string {
   );
 }
 
+// U+2205-like: interior slash (no edge contact)
 function emptyset_bold(): string {
+  const R = SIZES.circleR_bold;           // 30
+  const strokeCircle = STROKES.bold;      // 14
+  const strokeSlash = 12;                 // thicker slash
+  const edgeGap = 6;                      // keep slash inside
+  const angle = -35;
+
+  const { L } = interiorSlash(R, strokeSlash, edgeGap);
+
   return xml(
-    wrap100(
-      [
-        `  <!-- Bold, logo-friendly weight -->`,
-        `  <g fill="none" stroke="currentColor" stroke-width="${STROKES.bold}" stroke-linecap="round" stroke-linejoin="round">`,
-        `    <circle cx="50" cy="50" r="${SIZES.circleR_bold}"/>`,
-        `    <line x1="24" y1="76" x2="76" y2="24"/>`,
-        `  </g>`,
-      ].join("\n")
-    )
+    wrap100([
+      `<!-- U+2205-inspired bold: interior slash with rounded ends -->`,
+      `<g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">`,
+      `  <circle cx="${CX}" cy="${CY}" r="${R}" stroke-width="${strokeCircle}"/>`,
+      `  <g transform="rotate(${angle} ${CX} ${CY})">`,
+      `    <line x1="${CX - L/2}" y1="${CY}" x2="${CX + L/2}" y2="${CY}" stroke-width="${strokeSlash}"/>`,
+      `  </g>`,
+      `</g>`
+    ].join("\n"))
   );
 }
 
@@ -99,22 +116,40 @@ function emptyset_tilted(): string {
 }
 
 function emptyset_filled_outline(): string {
+  // Solid ring + interior knock-out slash
+  const R_OUTER = 38,
+    R_INNER = 24; // ring thickness ≈ 14
+  const angle = -35;
+  const knockGap = 7;
+  const knockHeight = 12;
+  const knockRadius = 6;
+  const knockLength = 2 * (R_OUTER - knockGap);
+
   return xml(
     wrap100(
       [
-        `  <!-- Filled ring + negative slash (mask). Good for solid marks. -->`,
-        `  <defs>`,
-        `    <mask id="cut">`,
-        `      <rect x="0" y="0" width="100" height="100" fill="white"/>`,
-        `      <g transform="rotate(-45 50 50)">`,
-        `        <rect x="15" y="45" width="70" height="10" rx="5" ry="5" fill="black"/>`,
-        `      </g>`,
-        `    </mask>`,
-        `  </defs>`,
-        `  <g fill="currentColor" mask="url(#cut)">`,
-        `    <path d="M50,10 a40,40 0 1,1 0,80 a40,40 0 1,1 0,-80`,
-        `             M50,22 a28,28 0 1,0 0,56 a28,28 0 1,0 0,-56" fill-rule="evenodd"/>`,
-        `  </g>`,
+        `<!-- U+2205-inspired solid ring with interior knocked-out slash -->`,
+        `<defs>`,
+        `  <mask id="cut">`,
+        `    <rect x="0" y="0" width="100" height="100" fill="white"/>`,
+        `    <g transform="rotate(${angle} ${CX} ${CY})">`,
+        `      <rect x="${CX - knockLength / 2}" y="${
+          CY - knockHeight / 2
+        }" width="${knockLength}" height="${knockHeight}" rx="${knockRadius}" ry="${knockRadius}" fill="black"/>`,
+        `    </g>`,
+        `  </mask>`,
+        `</defs>`,
+        `<g fill="currentColor" mask="url(#cut)">`,
+        `  <path d="`,
+        `    M ${CX},${CY - R_OUTER}`,
+        `    a ${R_OUTER},${R_OUTER} 0 1 1 0,${2 * R_OUTER}`,
+        `    a ${R_OUTER},${R_OUTER} 0 1 1 0,${-2 * R_OUTER}`,
+        `    M ${CX},${CY - R_INNER}`,
+        `    a ${R_INNER},${R_INNER} 0 1 0 0,${2 * R_INNER}`,
+        `    a ${R_INNER},${R_INNER} 0 1 0 0,${
+          -2 * R_INNER
+        }" fill-rule="evenodd"/>`,
+        `</g>`,
       ].join("\n")
     )
   );
@@ -184,4 +219,3 @@ try {
   console.error(err);
   process.exit(1);
 }
-
