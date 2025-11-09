@@ -1,10 +1,11 @@
 {
-  "name": "emptyset-u2205-precise",
+  "name": "emptyset-u2205",
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "gen": "tsx src/gen-emptyset.ts emptyset_svg",
-    "gen:precise": "tsx src/gen-emptyset-precise.ts emptyset_svg"
+    "gen": "tsx src/gen-emptyset.ts emptyset_svg --set=precise",
+    "gen:legacy": "tsx src/gen-emptyset.ts emptyset_svg --set=legacy",
+    "gen:all": "tsx src/gen-emptyset.ts emptyset_svg --set=all"
   },
   "devDependencies": {
     "@types/node": "^24.10.0",
