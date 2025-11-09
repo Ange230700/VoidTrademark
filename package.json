@@ -1,0 +1,12 @@
+{
+  "name": "emptyset-u2205-precise",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "gen": "tsx src/gen-emptyset-precise.ts emptyset_svg"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  }
+}
