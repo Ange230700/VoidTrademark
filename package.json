@@ -12,7 +12,7 @@
     "gen:custom": "tsx src/gen-emptyset.ts emptyset_svg --set=precise --angle=-34 --edge-gap=7 --slash-stroke=12 --radius-bold=33 --ring-outer=39 --ring-inner=25",
     "gen:legacy": "tsx src/gen-emptyset.ts emptyset_svg --set=legacy",
     "gen:all": "tsx src/gen-emptyset.ts emptyset_svg --set=all",
-    "gen:help": "echo 'Usage: tsx src/gen-emptyset.ts <outdir> [--set=precise|legacy|all] [--preset=inter|sf|helvetica] [--angle=-35] [--edge-gap=6] [--slash-stroke=12]'",
+    "gen:help": "echo 'Usage: tsx src/gen-emptyset.ts <outdir> [--set=precise|legacy|all] [--preset=inter|sf|helvetica] [--angle=-35] [--edge-gap=6] [--slash-stroke=12] [--overshoot=6]'",
     "clean": "rimraf emptyset_svg"
   },
   "devDependencies": {

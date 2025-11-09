@@ -30,6 +30,7 @@ const ARG_SLASH_STROKE = getNum("--slash-stroke");
 const ARG_RADIUS_BOLD = getNum("--radius-bold");
 const ARG_RING_OUTER = getNum("--ring-outer");
 const ARG_RING_INNER = getNum("--ring-inner");
+const ARG_OVERSHOOT = getNum("--overshoot");
 
 function getArg(flag: string): string | undefined {
   const match = process.argv.find((a) => a.startsWith(flag + "="));
@@ -92,6 +93,7 @@ type PreciseConfig = {
   ringInner: number; // filled ring inner radius
   knockGap: number; // gap from ring outer edge to ends of knock-out
   knockRadius: number; // rounded ends radius for knock-out
+  overshoot: number; // how far the slash extends beyond radius (cut-through)
 };
 
 // Presets approximate the look of ∅ in common UI fonts (fine-tune as you like).
@@ -117,6 +119,7 @@ function resolvePreciseConfig(): PreciseConfig {
     ringInner: 24,
     knockGap: 7,
     knockRadius: 6,
+    overshoot: 6,
   };
 
   // Apply preset if any
@@ -137,6 +140,8 @@ function resolvePreciseConfig(): PreciseConfig {
     merged.ringOuter = clamp(ARG_RING_OUTER, 26, 48);
   if (ARG_RING_INNER !== undefined)
     merged.ringInner = clamp(ARG_RING_INNER, 14, merged.ringOuter - 6);
+  if (ARG_OVERSHOOT !== undefined)
+    merged.overshoot = clamp(ARG_OVERSHOOT, 0, 20);
 
   // Keep ring thickness vaguely close to circleStroke by default
   // knockGap should be a little larger than edgeGap (visual breathing room)
@@ -149,14 +154,9 @@ function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n));
 }
 
-/** compute interior slash length so it stays inside the circle */
-function slashLengthFor(
-  radius: number,
-  stroke: number,
-  edgeGap: number
-): number {
-  const safeRadius = radius - (edgeGap + stroke / 2);
-  return Math.max(0, 2 * safeRadius);
+/** compute slash length that CUTS THROUGH the ring (extends past radius) */
+function slashLengthCutThrough(radius: number, overshoot: number): number {
+  return Math.max(0, 2 * (radius + overshoot));
 }
 
 // ────────────────────────────────────────────────────────────────────────────────
@@ -164,11 +164,12 @@ function slashLengthFor(
 // ────────────────────────────────────────────────────────────────────────────────
 
 function precise_emptyset_bold(cfg: PreciseConfig): string {
-  const L = slashLengthFor(cfg.radiusBold, cfg.slashStroke, cfg.edgeGap);
+  // Cut-through: extend beyond circle radius by `overshoot`
+  const L = slashLengthCutThrough(cfg.radiusBold, cfg.overshoot);
   return xml(
     wrap100(
       [
-        `<!-- U+2205-inspired bold: interior slash with rounded ends, no edge contact -->`,
+        `<!-- U+2205 cut-through: slash extends beyond the circle to intersect the ring -->`,
         strokeGroupOpen(),
         `  <circle cx="${cfg.cx}" cy="${cfg.cy}" r="${cfg.radiusBold}" stroke-width="${cfg.circleStroke}"/>`,
         `  <g transform="rotate(${cfg.angle} ${cfg.cx} ${cfg.cy})">`,
@@ -184,12 +185,13 @@ function precise_emptyset_bold(cfg: PreciseConfig): string {
 
 function precise_emptyset_filled_outline(cfg: PreciseConfig): string {
   const maskId = `cut-${randomUUID()}`; // unique per render
-  const knockLength = 2 * (cfg.ringOuter - cfg.knockGap);
+  // Cut-through: knockout extends beyond the ring by `overshoot`
+  const knockLength = 2 * (cfg.ringOuter + cfg.overshoot);
 
   return xml(
     wrap100(
       [
-        `<!-- Solid ring with an interior knocked-out slash (no edge contact) -->`,
+        `<!-- Solid ring with a cut-through knocked-out slash (extends past ring) -->`,
         `<defs>`,
         `  <mask id="${maskId}">`,
         `    <rect x="0" y="0" width="100" height="100" fill="white"/>`,
@@ -320,11 +322,11 @@ function legacy_emptyset_monogram(): string {
 // ────────────────────────────────────────────────────────────────────────────────
 
 function readmePrecise(cfg: PreciseConfig): string {
-  return `Empty Set (∅) – Unicode U+2205-aligned
-=========================================
-- Stroke variant: interior diagonal with rounded ends; does NOT touch the ring.
-- Filled variant: solid ring with interior knocked-out slash.
-- Angle ≈ ${Math.abs(cfg.angle)}°, edge gap ${cfg.edgeGap}, slash stroke ${
+  return `Empty Set (∅) – Unicode U+2205 (cut-through)
+==============================================
+- Stroke variant: diagonal slash extends past the circle (cut-through).
+- Filled variant: knockout slash also extends past the ring.
+- Angle ≈ ${Math.abs(cfg.angle)}°, overshoot ${cfg.overshoot}, slash stroke ${
     cfg.slashStroke
   }.
 - Stroke groups use vector-effect="non-scaling-stroke".
