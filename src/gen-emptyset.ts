@@ -9,13 +9,16 @@ import { randomUUID } from "node:crypto";
  *                          [--preset=inter|sf|helvetica]
  *                          [--angle=-35] [--edge-gap=6] [--slash-stroke=12]
  *                          [--radius-bold=32] [--ring-outer=38] [--ring-inner=24]
+ *                          [--overshoot=6]
  *
  * Notes:
- * - Stroke-based variants get vector-effect="non-scaling-stroke".
- * - Filled variants stay as-is (no vector-effect).
+ * - Stroke-based variants get vector-effect="non-scaling-stroke" and now always **overshoot** the circle.
+ * - Filled variants stay contained (their slash/knockout does **not** overshoot).
  * - SVGs inherit color via `currentColor`.
  *
- * Flags affect the **precise** set (U+2205-like interior slash) only.
+ * Flags:
+ *   - `--overshoot` applies to **all stroke** variants (precise + legacy).
+ *   - other flags (`--angle`, `--edge-gap`, etc.) apply to the **precise** set.
  */
 
 const OUT_DIR = process.argv[2] ?? "emptyset_svg";
@@ -185,13 +188,13 @@ function precise_emptyset_bold(cfg: PreciseConfig): string {
 
 function precise_emptyset_filled_outline(cfg: PreciseConfig): string {
   const maskId = `cut-${randomUUID()}`; // unique per render
-  // Cut-through: knockout extends beyond the ring by `overshoot`
-  const knockLength = 2 * (cfg.ringOuter + cfg.overshoot);
+  // Contained: knockout stays within the ring (no overshoot)
+  const knockLength = 2 * (cfg.ringOuter - cfg.knockGap);
 
   return xml(
     wrap100(
       [
-        `<!-- Solid ring with a cut-through knocked-out slash (extends past ring) -->`,
+        `<!-- Solid ring with an interior knocked-out slash (contained; no overshoot) -->`,
         `<defs>`,
         `  <mask id="${maskId}">`,
         `    <rect x="0" y="0" width="100" height="100" fill="white"/>`,
@@ -226,53 +229,71 @@ function precise_emptyset_filled_outline(cfg: PreciseConfig): string {
 // ────────────────────────────────────────────────────────────────────────────────
 
 function legacy_emptyset_basic(): string {
+  const overshoot = clamp(ARG_OVERSHOOT ?? 6, 0, 20);
+  const R = SIZES.circleR_basic;
+  const L = slashLengthCutThrough(R, overshoot);
   return xml(
     wrap100(
       [
-        `  <!-- Legacy: circle + diagonal slash -->`,
+        `  <!-- Legacy: circle + diagonal slash (cut-through) -->`,
         strokeGroupOpen(`stroke-width="${STROKES.basic}"`),
-        `    <circle cx="50" cy="50" r="${SIZES.circleR_basic}"/>`,
-        `    <line x1="28" y1="72" x2="72" y2="28" />`,
+        `    <circle cx="50" cy="50" r="${R}"/>`,
+        `    <g transform="rotate(-45 50 50)">`,
+        `      <line x1="${50 - L / 2}" y1="50" x2="${50 + L / 2}" y2="50"/>`,
+        `    </g>`,
         strokeGroupClose,
       ].join("\n")
     )
   );
 }
 function legacy_emptyset_round(): string {
+  const overshoot = clamp(ARG_OVERSHOOT ?? 6, 0, 20);
+  const R = SIZES.circleR_round;
+  const L = slashLengthCutThrough(R, overshoot);
   return xml(
     wrap100(
       [
-        `  <!-- Legacy: rounded caps/joins -->`,
+        `  <!-- Legacy: rounded caps/joins (cut-through) -->`,
         strokeGroupOpen(`stroke-width="${STROKES.round}"`),
-        `    <circle cx="50" cy="50" r="${SIZES.circleR_round}"/>`,
-        `    <line x1="26" y1="74" x2="74" y2="26"/>`,
+        `    <circle cx="50" cy="50" r="${R}"/>`,
+        `    <g transform="rotate(-45 50 50)">`,
+        `      <line x1="${50 - L / 2}" y1="50" x2="${50 + L / 2}" y2="50"/>`,
+        `    </g>`,
         strokeGroupClose,
       ].join("\n")
     )
   );
 }
 function legacy_emptyset_bold(): string {
+  const overshoot = clamp(ARG_OVERSHOOT ?? 6, 0, 20);
+  const R = SIZES.circleR_bold;
+  const L = slashLengthCutThrough(R, overshoot);
   return xml(
     wrap100(
       [
-        `  <!-- Legacy: bold full-length diagonal -->`,
+        `  <!-- Legacy: bold diagonal (cut-through) -->`,
         strokeGroupOpen(`stroke-width="${STROKES.bold}"`),
-        `    <circle cx="50" cy="50" r="${SIZES.circleR_bold}"/>`,
-        `    <line x1="24" y1="76" x2="76" y2="24"/>`,
+        `    <circle cx="50" cy="50" r="${R}"/>`,
+        `    <g transform="rotate(-45 50 50)">`,
+        `      <line x1="${50 - L / 2}" y1="50" x2="${50 + L / 2}" y2="50"/>`,
+        `    </g>`,
         strokeGroupClose,
       ].join("\n")
     )
   );
 }
 function legacy_emptyset_tilted(): string {
+  const overshoot = clamp(ARG_OVERSHOOT ?? 6, 0, 20);
+  const R = SIZES.circleR_tilted;
+  const L = slashLengthCutThrough(R, overshoot);
   return xml(
     wrap100(
       [
-        `  <!-- Legacy: rotated line group -->`,
+        `  <!-- Legacy: rotated line group (cut-through) -->`,
         strokeGroupOpen(`stroke-width="${STROKES.tilted}"`),
-        `    <circle cx="50" cy="50" r="${SIZES.circleR_tilted}"/>`,
+        `    <circle cx="50" cy="50" r="${R}"/>`,
         `    <g transform="rotate(-40 50 50)">`,
-        `      <line x1="20" y1="50" x2="80" y2="50"/>`,
+        `      <line x1="${50 - L / 2}" y1="50" x2="${50 + L / 2}" y2="50"/>`,
         `    </g>`,
         strokeGroupClose,
       ].join("\n")
@@ -302,13 +323,22 @@ function legacy_emptyset_filled_outline(): string {
   );
 }
 function legacy_emptyset_monogram(): string {
+  const overshoot = clamp(ARG_OVERSHOOT ?? 6, 0, 20);
+  const CX = 60,
+    CY = 50;
+  const R = SIZES.circleR_monogram;
+  const L = slashLengthCutThrough(R, overshoot);
   return xml(
     wrap120(
       [
-        `  <!-- Legacy: monogram lockup on 120 box -->`,
+        `  <!-- Legacy: monogram lockup on 120 box (cut-through) -->`,
         strokeGroupOpen(`stroke-width="${STROKES.monogram}"`),
-        `    <circle cx="60" cy="50" r="${SIZES.circleR_monogram}"/>`,
-        `    <line x1="34" y1="76" x2="86" y2="24"/>`,
+        `    <circle cx="${CX}" cy="${CY}" r="${R}"/>`,
+        `    <g transform="rotate(-45 ${CX} ${CY})">`,
+        `      <line x1="${CX - L / 2}" y1="${CY + L / 2}" x2="${
+          CX + L / 2
+        }" y2="${CY - L / 2}"/>`,
+        `    </g>`,
         strokeGroupClose,
         `  <!-- Optional baseline for wordmark:`,
         `  <text x="60" y="108" font-size="18" text-anchor="middle" fill="currentColor" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif">YourBrand</text> -->`,
@@ -322,10 +352,10 @@ function legacy_emptyset_monogram(): string {
 // ────────────────────────────────────────────────────────────────────────────────
 
 function readmePrecise(cfg: PreciseConfig): string {
-  return `Empty Set (∅) – Unicode U+2205 (cut-through)
-==============================================
-- Stroke variant: diagonal slash extends past the circle (cut-through).
-- Filled variant: knockout slash also extends past the ring.
+  return `Empty Set (∅) – Unicode U+2205
+====================================
+- Stroke variant: diagonal slash **cuts through** (overshoots) the circle.
+- Filled variant: knockout slash is **contained** within the ring (no overshoot).
 - Angle ≈ ${Math.abs(cfg.angle)}°, overshoot ${cfg.overshoot}, slash stroke ${
     cfg.slashStroke
   }.
@@ -340,10 +370,10 @@ function readmeLegacy(): string {
   return `Empty Set (∅) SVG Pack – Legacy Set
 ======================================
 Variants:
-- emptyset_basic.svg — circle + slash, balanced proportions.
-- emptyset_round.svg — round caps/joins for a friendlier look.
-- emptyset_bold_legacy.svg — heavier stroke.
-- emptyset_tilted.svg — rotated slash.
+- emptyset_basic.svg — stroke slash **cuts through** the circle (overshoot).
+- emptyset_round.svg — rounded stroke slash **cuts through**.
+- emptyset_bold_legacy.svg — bold stroke slash **cuts through**.
+- emptyset_tilted.svg — rotated stroke slash **cuts through**.
 - emptyset_filled_outline_legacy.svg — solid ring with knocked-out slash (mask).
 - emptyset_monogram.svg — taller canvas for pairing with a wordmark.
 Stroke-based variants include vector-effect="non-scaling-stroke".
